@@ -1,9 +1,11 @@
 *.dll
 *.exe
 .DS_Store
+.vscode
 example.tf
 terraform.tfplan
 terraform.tfstate
+build/
 bin/
 dist/
 modules-dev/
@@ -24,6 +26,8 @@ website/node_modules
 *.iml
 *.test
 *.iml
+terraform-provider-sonarr
+.github/provider/config.json
 
 website/vendor
 

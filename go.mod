@@ -1,8 +1,9 @@
-module github.com/hashicorp/terraform-provider-scaffolding-framework
+module github.com/devopsarr/terraform-provider-overseerr
 
 go 1.19
 
 require (
+	github.com/devopsarr/overseerr-go v0.1.1
 	github.com/hashicorp/terraform-plugin-docs v0.16.0
 	github.com/hashicorp/terraform-plugin-framework v1.4.1
 	github.com/hashicorp/terraform-plugin-go v0.19.0
@@ -65,6 +66,7 @@ require (
 	golang.org/x/exp v0.0.0-20230809150735-7b3493d9a819 // indirect
 	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
+	golang.org/x/oauth2 v0.7.0 // indirect
 	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
@@ -72,3 +74,6 @@ require (
 	google.golang.org/grpc v1.57.0 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 )
+
+// To be removed once terraform docs allows subcategories
+replace github.com/hashicorp/terraform-plugin-docs => github.com/fuochi/terraform-plugin-docs v0.0.0-20230303070141-d2c1202cfe89

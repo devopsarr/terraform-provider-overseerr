@@ -1,12 +1,10 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package provider
 
 import (
 	"context"
-	"net/http"
+	"os"
 
+	"github.com/devopsarr/overseerr-go/overseerr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
@@ -14,40 +12,50 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// Ensure ScaffoldingProvider satisfies various provider interfaces.
-var _ provider.Provider = &ScaffoldingProvider{}
+// needed for tf debug mode
+// var stderr = os.Stderr
+
+// Ensure provider defined types fully satisfy framework interfaces.
+var _ provider.Provider = &OverseerrProvider{}
 
 // ScaffoldingProvider defines the provider implementation.
-type ScaffoldingProvider struct {
+type OverseerrProvider struct {
 	// version is set to the provider version on release, "dev" when the
 	// provider is built and ran locally, and "test" when running acceptance
 	// testing.
 	version string
 }
 
-// ScaffoldingProviderModel describes the provider data model.
-type ScaffoldingProviderModel struct {
-	Endpoint types.String `tfsdk:"endpoint"`
+// Overseerr describes the provider data model.
+type Overseerr struct {
+	APIKey types.String `tfsdk:"api_key"`
+	URL    types.String `tfsdk:"url"`
 }
 
-func (p *ScaffoldingProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
-	resp.TypeName = "scaffolding"
+func (p *OverseerrProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
+	resp.TypeName = "overseerr"
 	resp.Version = p.version
 }
 
-func (p *ScaffoldingProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
+func (p *OverseerrProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		MarkdownDescription: "The Overseerr provider is used to interact with any [Overseerr](https://overseerr.dev/) installation.\nYou must configure the provider with the proper [credentials](#api_key) before you can use it.\nUse the left navigation to read about the available resources.\n\nFor more information about Overseerr and its resources, as well as configuration guides and hints, visit the [Servarr wiki](https://wiki.servarr.com/en/overseerr).",
 		Attributes: map[string]schema.Attribute{
-			"endpoint": schema.StringAttribute{
-				MarkdownDescription: "Example provider attribute",
+			"api_key": schema.StringAttribute{
+				MarkdownDescription: "API key for Overseerr authentication. Can be specified via the `OVERSEERR_API_KEY` environment variable.",
+				Optional:            true,
+				Sensitive:           true,
+			},
+			"url": schema.StringAttribute{
+				MarkdownDescription: "Full Overseerr URL with protocol and port (e.g. `https://test.overseerr.tv:5055`). You should **NOT** supply any path (`/api`), the SDK will use the appropriate paths. Can be specified via the `OVERSEERR_URL` environment variable.",
 				Optional:            true,
 			},
 		},
 	}
 }
 
-func (p *ScaffoldingProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
-	var data ScaffoldingProviderModel
+func (p *OverseerrProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+	var data Overseerr
 
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 
@@ -55,30 +63,86 @@ func (p *ScaffoldingProvider) Configure(ctx context.Context, req provider.Config
 		return
 	}
 
-	// Configuration values are now available.
-	// if data.Endpoint.IsNull() { /* ... */ }
+	// User must provide URL to the provider
+	if data.URL.IsUnknown() {
+		// Cannot connect to client with an unknown value
+		resp.Diagnostics.AddWarning(
+			"Unable to create client",
+			"Cannot use unknown value as url",
+		)
 
-	// Example client configuration for data sources and resources
-	client := http.DefaultClient
+		return
+	}
+
+	var url string
+	if data.URL.IsNull() {
+		url = os.Getenv("OVERSEERR_URL")
+	} else {
+		url = data.URL.ValueString()
+	}
+
+	if url == "" {
+		// Error vs warning - empty value must stop execution
+		resp.Diagnostics.AddError(
+			"Unable to find URL",
+			"URL cannot be an empty string",
+		)
+
+		return
+	}
+
+	// User must provide API key to the provider
+	if data.APIKey.IsUnknown() {
+		// Cannot connect to client with an unknown value
+		resp.Diagnostics.AddWarning(
+			"Unable to create client",
+			"Cannot use unknown value as api_key",
+		)
+
+		return
+	}
+
+	var key string
+	if data.APIKey.IsNull() {
+		key = os.Getenv("OVERSEERR_API_KEY")
+	} else {
+		key = data.APIKey.ValueString()
+	}
+
+	if key == "" {
+		// Error vs warning - empty value must stop execution
+		resp.Diagnostics.AddError(
+			"Unable to find API key",
+			"API key cannot be an empty string",
+		)
+
+		return
+	}
+
+	// Configuring client. API Key management could be changed once new options avail in sdk.
+	config := overseerr.NewConfiguration()
+	config.AddDefaultHeader("X-Api-Key", key)
+	config.Servers[0].URL = url
+	client := overseerr.NewAPIClient(config)
+
 	resp.DataSourceData = client
 	resp.ResourceData = client
 }
 
-func (p *ScaffoldingProvider) Resources(ctx context.Context) []func() resource.Resource {
+func (p *OverseerrProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
-		NewExampleResource,
+		NewSettingsResource,
 	}
 }
 
-func (p *ScaffoldingProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
-	return []func() datasource.DataSource{
-		NewExampleDataSource,
-	}
+func (p *OverseerrProvider) DataSources(_ context.Context) []func() datasource.DataSource {
+	return []func() datasource.DataSource{}
 }
 
+// New returns the provider with a specific version.
 func New(version string) func() provider.Provider {
 	return func() provider.Provider {
-		return &ScaffoldingProvider{
+		return &OverseerrProvider{
 			version: version,
 		}
 	}

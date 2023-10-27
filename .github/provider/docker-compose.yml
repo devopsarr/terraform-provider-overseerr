@@ -1,0 +1,37 @@
+---
+version: "3.9"
+services:
+  overseerr:
+    image: hotio/overseerr:release-1.33.2
+    container_name: overseerr
+    depends_on:
+      - plex
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - UMASK=002
+      - TZ=Europe/London
+    volumes:
+      - ./config.json:/config/settings.json
+    ports:
+      - 5055:5055
+    restart: unless-stopped
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:8989/system/status"]
+  plex:
+    image: plexinc/pms-docker
+    container_name: plex
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    ports:
+      - 32400:32400
+      - 3005:3005
+      - 8324:8324
+      - 32469:32469
+      - 1900:1900
+      - 32410:32410
+      - 32412:32412
+      - 32413:32413
+      - 32414:32414
